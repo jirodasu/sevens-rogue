@@ -15,7 +15,7 @@ class Game:
   self.rng=random.Random(17); self.turn=1; self.score=0; self.mult=1; self.done=False; self.msg='Choose a card or HOLD'
   self.lo={s:7 for s in SUITS}; self.hi={s:7 for s in SUITS}
   deck=[(s,r) for s in SUITS for r in RANKS if r!=7]; self.rng.shuffle(deck); self.deck=deck
-  self.hand=[]; self.hold=[]; self.fire={}; self.bonus={}; self.last=False
+  self.hand=[]; self.hold=[]; self.fire={}; self.bonus={}; self.last=False; self.swap_pick=None
   for _ in range(5): self.draw_card()
   self.roll_bonus()
  def draw_card(self):
@@ -64,8 +64,12 @@ class Game:
   c=self.hand.pop(i); self.hold.append(c); self.draw_card(); self.msg=f'Held {c[0]}{RN.get(c[1],c[1])}'; self.advance()
  def swap_hold(self,i):
   if self.done or i>=len(self.hold):return
-  if len(self.hand)>=5:self.msg='Hand full: play/hold first';return
-  self.hand.append(self.hold.pop(i)); self.msg='Returned from HOLD'
+  self.swap_pick=i; self.msg='Choose a HAND card to swap'
+ def swap_with_hand(self,i):
+  if self.swap_pick is None or i>=len(self.hand):return
+  h=self.swap_pick
+  self.hand[i],self.hold[h]=self.hold[h],self.hand[i]
+  self.swap_pick=None; self.msg='Swapped HOLD <-> HAND'
  def advance(self):
   for c in list(self.fire):
    self.fire[c][0]-=1
@@ -85,7 +89,8 @@ class Game:
    for i in range(len(self.hand)):
     bx=7+i*46
     if bx<=x<bx+42 and 226<=y<276:
-     if y>=261:self.hold_card(i)
+     if self.swap_pick is not None:self.swap_with_hand(i)
+     elif y>=261:self.hold_card(i)
      else:self.play(i)
      return
    for i in range(len(self.hold)):
@@ -124,7 +129,7 @@ class Game:
      pyxel.text(xx,y+25,('<'+b) if d=='L' else (b+'>'),10 if self.last else 9)
   pyxel.line(5,201,235,201,5)
   pyxel.text(7,205,self.msg[:38],7)
-  pyxel.text(7,216,'HAND: tap card=PLAY / bottom=HOLD',6)
+  pyxel.text(7,216,'Choose HAND card to SWAP' if self.swap_pick is not None else 'HAND: tap card=PLAY / bottom=HOLD',10 if self.swap_pick is not None else 6)
   for i,c in enumerate(self.hand):
    x=7+i*46; good=self.playable(c)
    pyxel.rect(x,226,42,50,3 if good else 0); pyxel.rectb(x,226,42,50,11 if good else 5)
@@ -134,7 +139,7 @@ class Game:
    pyxel.line(x,260,x+41,260,5); pyxel.text(x+10,265,'HOLD',6)
   pyxel.text(7,282,'HOLD',6)
   for i,c in enumerate(self.hold):
-   x=75+i*48; pyxel.rect(x,280,42,32,0);pyxel.rectb(x,280,42,32,6)
+   x=75+i*48; pyxel.rect(x,280,42,32,0);pyxel.rectb(x,280,42,32,10 if self.swap_pick==i else 6)
    pyxel.text(x+5,291,self.label(c),SUIT_COL[SUITS.index(c[0])])
   if self.done:
    pyxel.rect(35,92,170,105,0);pyxel.rectb(35,92,170,105,7)
